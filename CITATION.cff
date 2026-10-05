@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper."
+title: "EgressGap: code and aggregate results for 'Measuring Reachability Beyond Declared Hostnames in CI/CD Egress Allowlists'"
+type: software
+authors:
+  - family-names: "Dinh Ngoc"
+    given-names: "Bao Vu"
+  - family-names: "Nguyen"
+    given-names: "Van-Linh"
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-10-05
+repository-code: "https://github.com/chuitrai/EgressGap"   

@@ -1,0 +1,40 @@
+# --- Secrets (never commit) -------------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+
+# --- Python / tooling ---------------------------------------------------------
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info
+.venv/
+.pytest_cache/
+.vscode/
+.idea/
+
+# --- Data must live OUTSIDE this repo (see src/teep/paths.py, $TEEP_DATA) -----
+# Belt and braces: if any script ever writes data back into the repo, git
+# ignores it. Only code, hand-authored config and aggregate results are public.
+/data/
+/measurement/
+/analysis/
+/cotenancy/
+/tranco/
+/tmp*/
+*.jsonl
+*.log
+*.zip
+*.tgz
+*.csv
+
+# Hand-authored config inside the package IS public:
+!src/teep/config/**
+
+# Aggregate results ARE public (no per-repository rows; see README):
+!results/**
+
+# Output of exploratory scripts run from the repo root
+/fig/

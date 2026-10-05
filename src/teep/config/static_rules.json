@@ -1,0 +1,196 @@
+{
+  "schema_version": 4,
+  "updated": "2026-09-07",
+  "description": "Bang luat S1 (Static Analysis) duoc hieu chuan bang Oracle Proxy va do luong thuc nghiem.",
+  "changelog_v4": "Phase 1 (S1-A baseline mo rong): them rule/domain moi dua tren tan suat that cua 'uses: action' dang roi vao fallback any_action (xem measurement/analyze_any_action_fallback.py + any_action_fallback_frequency.json, corpus 4.419 file workflow). 2 loai thay doi: (a) MO RONG pattern cua rule co san (docker, sigstore) de bao phu them cac action chinh thuc cung ho - domain KHONG doi, confidence giu nguyen vi co so ky thuat ro rang; (b) rule MOI hoan toan (harden_runner, pypi_publish, codeql_action) - CAN chay validate_static_rules.py de kiem chung ty le khop truoc khi nang confidence, dang o muc 'candidate'.",
+  "changelog_v4_2": "Them 5 domain vao rule co san dua tren Error/Failure FN breakdown cua measurement/experiment/evaluate_s1_vs_rexec.py (n=371 repo, sau khi sua bug bat doi xung TOOLING o extract_rlog_v2.py): raw.githubusercontent.com (any_action), pkg-containers.githubusercontent.com (ghcr), production.cloudfront.docker.com (docker), packages.microsoft.com (apt), api.scorecard.dev (security_scanners). CO Y BO QUA 3 domain FN con lai vi qua dac thu/chua ro pattern kich hoat, KHONG doan bua: customer-transient-data-<id>.s3.us-west-2.amazonaws.com (43/371 - ten bucket rieng cua 1 repo, gan id tai khoan, khong khai quat duoc), oss-fuzz-build-logs.storage.googleapis.com (24/371 - dac thu tich hop OSS-Fuzz, chua xac dinh duoc trigger pattern ro rang trong text workflow), keybase.io (19/371 - chua ro co che kich hoat). CO Y CHUA XU LY (theo yeu cau): run-actions-3-azure-eastus.actions.githubusercontent.com (18/371) - nghi la lop tooling thu 3 (ha tang GitHub-hosted runner tren Azure, giong ho hosted-compute-watchdog) nhung de nguyen, chua gan tooling hay them rule workload, cho quyet dinh rieng.",
+  "changelog_v4_3": "2 quyet dinh tooling cua Bao (2026-09-12), dua tren doc truc tiep log that (xem measurement/taskb_run_data/logs, vd affinidi_affinidi-tdk-rs, actions-security-demo_compromised-packages): (1) results-receiver.actions.githubusercontent.com (228 FN, cao nhat corpus) - CHUYEN tu rule 'actions_cache_artifact' (ecosystem=github, dieu kien 'uses: actions/cache|upload-artifact|download-artifact') sang 'github_actions_runtime_infra' (ecosystem=tooling). Bang chung quyet dinh: dong debug cua chinh actions-runner '##[debug][Request] FinalizeCacheEntryUpload https://results-receiver.actions.githubusercontent.com/twirp/github.actions.results.api.v1.CacheService/...' - day la Twirp API CacheService CUA CHINH RUNNER, khong phai lenh nao trong workflow goi truc tiep; xuat hien ca o workflow KHONG dung actions/cache tuong minh (vd OpenSSF Scorecard, npm publish/attestation) nen dieu kien kich hoat cu (uses: actions/cache...) la SAI - giong het pattern loi da tim thay o actions-results-receiver-production.githubapp.com truoc do. Rule 'actions_cache_artifact' bi XOA (chi co 1 domain, nay chuyen het). (2) run-actions-{1,2,3}-azure-eastus.actions.githubusercontent.com (32 FN) - THEM vao 'github_actions_runtime_infra' cung nhom, xac nhan qua log la ha tang OIDC/token-exchange cua actions-runner (xuat hien cung token.actions.githubusercontent.com/api.github.com trong luong publish/attestation), khong phai dependency cua workload. Da dong bo sang measurement/extract_rlog_v2.py (them 2 domain vao GH_RUNTIME_INFRA_RE) de 2 phia S1/D_static va R_exec dung chung 1 dinh nghia tooling.",
+  "rules": [
+    {
+      "id": "pip",
+      "ecosystem": "python",
+      "patterns": ["pip3?\\s+install", "requirements[\\w.-]*\\.txt", "uses:\\s*actions/setup-python"],
+      "domains": ["pypi.org", "files.pythonhosted.org", "objects.githubusercontent.com"],
+      "confidence": "high"
+    },
+    {
+      "id": "npm",
+      "ecosystem": "javascript",
+      "patterns": ["npm\\s+(ci|install|i)\\b", "package-lock\\.json", "uses:\\s*actions/setup-node"],
+      "domains": ["registry.npmjs.org", "nodejs.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "yarn",
+      "ecosystem": "javascript",
+      "patterns": ["yarn\\s+(install|build|test)", "yarn\\.lock"],
+      "domains": ["registry.yarnpkg.com", "registry.npmjs.org", "nodejs.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "pnpm",
+      "ecosystem": "javascript",
+      "patterns": ["pnpm\\s+(install|i|build)\\b", "pnpm-lock\\.yaml", "uses:\\s*pnpm/action-setup"],
+      "domains": ["registry.npmjs.org", "nodejs.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "go",
+      "ecosystem": "go",
+      "patterns": ["go\\s+(mod|get|build|test)\\b", "go\\.mod", "uses:\\s*actions/setup-go"],
+      "domains": ["proxy.golang.org", "sum.golang.org", "go.dev", "dl.google.com"],
+      "confidence": "high"
+    },
+    {
+      "id": "cargo",
+      "ecosystem": "rust",
+      "patterns": ["cargo\\s+(build|fetch|test|install)", "Cargo\\.toml", "uses:\\s*dtolnay/rust-toolchain", "sh\\.rustup\\.rs"],
+      "domains": ["crates.io", "static.crates.io", "index.crates.io", "static.rust-lang.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "terraform",
+      "ecosystem": "iac",
+      "patterns": ["terraform\\s+(init|plan|apply)", "hashicorp/setup-terraform", "opentofu"],
+      "domains": ["registry.terraform.io", "releases.hashicorp.com", "checkpoint-api.hashicorp.com", "get.opentofu.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "checkout",
+      "ecosystem": "git",
+      "patterns": ["uses:\\s*actions/checkout"],
+      "domains": ["github.com", "codeload.github.com"],
+      "confidence": "high"
+    },
+    {
+      "id": "docker",
+      "ecosystem": "container",
+      "patterns": ["docker\\s+(pull|build|push|run)", "uses:\\s*docker/(setup-buildx|build-push|login|metadata|setup-qemu)(-action)?"],
+      "domains": ["index.docker.io", "auth.docker.io", "production.cloudflare.docker.com", "production.cloudfront.docker.com", "registry-1.docker.io"],
+      "confidence": "medium",
+      "note": "v4: mo rong pattern them docker/login-action, docker/metadata-action, docker/setup-qemu-action - cung 1 ho action chinh thuc docker/*, cung ha tang registry, khong phai domain moi (xac dinh qua analyze_any_action_fallback.py: 89/81/34 repo dung 3 action nay nhung truoc do roi vao fallback any_action). v4.2: them production.cloudfront.docker.com (KHAC voi production.cloudflare.docker.com da co san - 2 CDN edge khac nhau cua Docker Hub, khong phai trung lap) - phat hien qua Error/Failure FN (35/371 repo)."
+    },
+    {
+      "id": "apt",
+      "ecosystem": "system",
+      "patterns": ["apt(-get)?\\s+(update|install)"],
+      "domains": ["archive.ubuntu.com", "security.ubuntu.com", "azure.archive.ubuntu.com", "esm.ubuntu.com", "packages.microsoft.com"],
+      "confidence": "medium",
+      "note": "v4.2: them packages.microsoft.com (kho apt chinh thuc cua Microsoft, dung khi workflow them repo MS truoc apt install - vd .NET, Azure CLI, PowerShell) - phat hien qua Error/Failure FN (26/371 repo). Confidence giu 'medium' vi khong phai MOI apt install deu dung repo MS - chi mot phan."
+    },
+    {
+      "id": "maven",
+      "ecosystem": "java",
+      "patterns": ["\\bmvn\\b", "pom\\.xml", "uses:\\s*actions/setup-java"],
+      "domains": ["repo.maven.apache.org", "repo1.maven.org"],
+      "confidence": "medium"
+    },
+    {
+      "id": "gradle",
+      "ecosystem": "java",
+      "patterns": ["\\bgradlew?\\b", "build\\.gradle", "uses:\\s*gradle/"],
+      "domains": ["services.gradle.org", "repo.maven.apache.org", "plugins.gradle.org"],
+      "confidence": "medium"
+    },
+    {
+      "id": "rubygems",
+      "ecosystem": "ruby",
+      "patterns": ["bundle\\s+install", "Gemfile", "uses:\\s*ruby/setup-ruby"],
+      "domains": ["rubygems.org", "index.rubygems.org"],
+      "confidence": "high"
+    },
+    {
+      "id": "code_coverage",
+      "ecosystem": "ci-tools",
+      "patterns": ["codecov/codecov-action", "\\bcodecov\\b"],
+      "domains": ["cli.codecov.io", "uploader.codecov.io", "codecov.io", "ingest.codecov.io"],
+      "confidence": "high"
+    },
+    {
+      "id": "security_scanners",
+      "ecosystem": "security",
+      "patterns": ["aquasecurity/trivy-action", "ossf/scorecard-action", "anchore/grype"],
+      "domains": ["api.osv.dev", "api.securityscorecards.dev", "api.scorecard.dev", "get.trivy.dev", "api.deps.dev", "www.bestpractices.dev"],
+      "confidence": "high",
+      "note": "v4.2: them api.scorecard.dev - phat hien qua Error/Failure FN (26/371 repo), domain KHAC voi api.securityscorecards.dev da co san (khong phai typo/trung lap - 2 hostname phan biet, ca hai deu lien quan OpenSSF Scorecard). CHUA xac minh 100% day la domain chinh thuc thu 2 hay endpoint thay the moi hon - can validate_static_rules.py doi chieu allowlist that de kiem lai."
+    },
+    {
+      "id": "sigstore",
+      "ecosystem": "supply-chain",
+      "patterns": ["\\bcosign\\b", "sigstore", "uses:\\s*sigstore/", "uses:\\s*actions/attest(-build-provenance|-sbom)?\\b"],
+      "domains": ["rekor.sigstore.dev", "fulcio.sigstore.dev", "tuf-repo-cdn.sigstore.dev"],
+      "confidence": "high",
+      "note": "v4: mo rong them actions/attest-build-provenance, actions/attest-sbom - hai action nay la wrapper chinh thuc cua GitHub goi thang sigstore keyless signing, cung ha tang, khong phai domain moi (51/28 repo, xac dinh qua analyze_any_action_fallback.py)."
+    },
+    {
+      "id": "gh_cli",
+      "ecosystem": "github",
+      "patterns": ["\\bgh\\s+\\w"],
+      "domains": ["api.github.com", "uploads.github.com", "github.com"],
+      "confidence": "high",
+      "note": "Domain co dinh bat ke subcommand (issue/pr/release/api/...) - kiem tra thuc nghiem 0/318 workflow dung gh cli co override GH_HOST/GITHUB_API_URL/GH_ENTERPRISE (xem measurement/parametric_locate.py). Khong dua vao Semgrep extraction vi khong can - domain khong phu thuoc argument. GIA DINH RO: chi kiem tra duoc override trong VAN BAN file workflow; gh cli cung co the doc ~/.config/gh/hosts.yml hoac duoc cau hinh qua 'gh auth login --hostname' o ngoai workflow (vd. tren self-hosted runner da setup san) ma static analysis khong thay duoc. We assume no step configures gh for a GitHub Enterprise host outside the workflow file."
+    },
+    {
+      "id": "github_actions_runtime_infra",
+      "ecosystem": "tooling",
+      "patterns": ["jobs:"],
+      "domains": ["actions-results-receiver-production.githubapp.com",
+                   "productionresultssa0.blob.core.windows.net", "productionresultssa1.blob.core.windows.net",
+                   "productionresultssa2.blob.core.windows.net", "productionresultssa3.blob.core.windows.net",
+                   "productionresultssa4.blob.core.windows.net", "productionresultssa5.blob.core.windows.net",
+                   "productionresultssa6.blob.core.windows.net", "productionresultssa7.blob.core.windows.net",
+                   "productionresultssa8.blob.core.windows.net", "productionresultssa9.blob.core.windows.net",
+                   "productionresultssa10.blob.core.windows.net", "productionresultssa11.blob.core.windows.net",
+                   "productionresultssa12.blob.core.windows.net", "productionresultssa13.blob.core.windows.net",
+                   "productionresultssa14.blob.core.windows.net", "productionresultssa15.blob.core.windows.net",
+                   "productionresultssa16.blob.core.windows.net", "productionresultssa17.blob.core.windows.net",
+                   "productionresultssa18.blob.core.windows.net", "productionresultssa19.blob.core.windows.net",
+                   "results-receiver.actions.githubusercontent.com",
+                   "run-actions-1-azure-eastus.actions.githubusercontent.com",
+                   "run-actions-2-azure-eastus.actions.githubusercontent.com",
+                   "run-actions-3-azure-eastus.actions.githubusercontent.com"],
+      "confidence": "high",
+      "note": "v4.1 - MOI, phat hien qua chinh buoc do Precision/Recall/F1 hom nay (khong phai suy doan truoc): day la nhom FN lon nhat cua S1-A (43,3% tong FN, xuat hien o 309/373 = 82,8% repo co bang chung R_exec). KHONG the du doan tu TEXT workflow duoc vi KHONG tuong quan voi bat ky uses:/run: cu the nao - day la ha tang bao cao ket qua job CUA CHINH GitHub Actions runner. 20 shard 'productionresultssaN' (N=0..19) la TOAN BO shard quan sat duoc trong corpus (enumeration tu du lieu that, khong phai doan - co the con shard khac chua quan sat duoc). Pattern 'jobs:' gan nhu luon khop (moi workflow GitHub Actions hop le deu co jobs:) - CO CHU DICH, vi ban chat domain nay la 'chay tren GitHub Actions' chu khong phai 'workflow lam gi'. ecosystem='tooling' -> loai khoi so sanh voi R_exec (WORKLOAD-only), giong cach xu ly harden_runner - day la mot 'mandatory hole' cap do GitHub Actions, tuong tu phat hien CoreDNS/DNS o T4 cap do Kubernetes. v4.3 (xem changelog_v4_3): gop them results-receiver.actions.githubusercontent.com (chuyen tu rule actions_cache_artifact da xoa - cung ho domain, cung ly do) va run-actions-{1,2,3}-azure-eastus.actions.githubusercontent.com (ha tang OIDC/token-exchange cua actions-runner) - ca 2 deu duoc xac nhan qua doc truc tiep log that, khong phai suy doan."
+    },
+    {
+      "id": "harden_runner",
+      "ecosystem": "tooling",
+      "patterns": ["uses:\\s*step-security/harden-runner"],
+      "domains": ["*.stepsecurity.io"],
+      "confidence": "high",
+      "note": "v4 - MOI, khong phai candidate: domain xac nhan TRUC TIEP tu bang chung DNS that (agent.api.stepsecurity.io, prod.app-api.stepsecurity.io - xem measurement/extract_rlog_v2.py, TOOLING_SUFFIX_RE), khong phai suy doan. ecosystem='tooling' CO CHU DICH khac voi cac rule khac: day la ha tang cua chinh cong cu enforcement, KHONG phai dependency cua workload - khi hop nhat D_static, PHAI loai domain cua rule nay khoi tap so sanh voi R_exec (WORKLOAD-only), giong het cach R_log v2 tach TOOLING khoi R_exec. Neu khong loai, moi repo dung Harden-Runner (1082/4419 file trong corpus) se bi tinh FP gia tao vi R_exec khong bao gio chua domain tooling nay."
+    },
+    {
+      "id": "pypi_publish",
+      "ecosystem": "python",
+      "patterns": ["uses:\\s*pypa/gh-action-pypi-publish"],
+      "domains": ["pypi.org", "upload.pypi.org", "test.pypi.org"],
+      "confidence": "low",
+      "note": "v4 candidate - CHUA hieu chuan. Domain dua tren tai lieu cong khai cua action (publish len PyPI/TestPyPI qua Twine/OIDC trusted publishing), CHUA doi chieu voi allowlist that qua validate_static_rules.py. 77 repo dung action nay dang roi vao fallback any_action truoc khi co rule nay."
+    },
+    {
+      "id": "codeql_action",
+      "ecosystem": "security",
+      "patterns": ["uses:\\s*github/codeql-action/"],
+      "domains": ["github.com", "objects.githubusercontent.com", "api.github.com", "uploads.github.com"],
+      "confidence": "low",
+      "note": "v4 candidate - CHUA hieu chuan. Domain suy tu co che cong khai (tai CodeQL bundle tu GitHub release, upload SARIF qua GitHub API) - CHUA co bang chung DNS truc tiep nhu harden_runner. Gom ca 4 sub-action (init/analyze/upload-sarif/autobuild), tong 220-312 repo/sub-action, la nhom tan suat cao thu 2 sau harden-runner trong any_action_fallback_frequency.json."
+    },
+    {
+      "id": "ghcr",
+      "ecosystem": "container",
+      "patterns": ["ghcr\\.io"],
+      "domains": ["ghcr.io", "pkg-containers.githubusercontent.com"],
+      "confidence": "high",
+      "note": "v4.1 - phat hien qua Error/Failure analysis (bucket b, khong co rule nao truoc do): ghcr.io la domain FN pho bien thu 3 cho S1-A (91/373 repo, 2,2% tong FN), la workload That (GitHub Container Registry, dung khi docker pull/push/login voi registry ghcr.io) - KHAC voi github_actions_runtime_infra o tren (cai do la ha tang bat buoc, con day la lua chon co y cua workflow), nen giu ecosystem='container' (workload), khong phai tooling. v4.2: them pkg-containers.githubusercontent.com - kho luu tru THAT phia sau ghcr.io (khi pull/push, request thuc te di qua domain nay), phat hien qua Error/Failure FN (45/371 repo)."
+    },
+    {
+      "id": "any_action",
+      "ecosystem": "github",
+      "patterns": ["uses:\\s*\\S+"],
+      "domains": ["api.github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "raw.githubusercontent.com"],
+      "confidence": "low",
+      "note": "Luat co muc do uu tien thap, chi phu tro khi cac action khong khop luat chuyen biet. v4.2: them raw.githubusercontent.com - domain FN pho bien NHAT (62/371 repo, top 1) trong Error/Failure analysis, cung ho *.githubusercontent.com nhu 2 domain da co san."
+    }
+  ]
+}

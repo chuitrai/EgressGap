@@ -1,0 +1,125 @@
+# egress_extract_rules.yaml
+# Muon gan nguyen van 3 rule cua Cosseter (curl/wget/git) - xem
+# pipeline/argus_cosseter_analysis.md va pipeline/cosseter/artifact/BashAnalyzer/semRulesFinal.yaml
+# (id: curl-url-extraction / wget-url-extraction / git-command-extraction).
+# Them 1 rule moi cho helm (Cosseter khong co, TEEP can vi helm repo la mot nguon
+# egress rieng - xem run:helm trong step_patterns.json).
+#
+# CHU Y khi doc ket qua: moi rule dung pattern-either KHONG loai tru lan nhau, nen
+# 1 dong lenh co the sinh NHIEU finding (moi finding ung voi 1 nhanh pattern-either).
+# Script extract_parametric_targets.py loc lay finding co $URL/$FEQVAL THUC SU duoc
+# gan gia tri (khac chuoi ten metavariable) - xem ham pick_target().
+rules:
+  - id: curl-url-extraction
+    pattern-either:
+      - patterns:
+          - pattern: curl ... $POT $URL ...
+          - metavariable-pattern:
+              metavariable: $POT
+              patterns:
+                - pattern-regex: (^(-|--)[a-zA-Z-]+=)|.*?
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: curl $URL ...
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: curl ... $FEQVAL ...
+          - metavariable-pattern:
+              metavariable: $FEQVAL
+              pattern-regex: ^(-|--)[a-zA-Z-]+=
+      # (them so voi Cosseter goc) fallback cho flag 1-ky-tu ngay truoc URL, vd
+      # "curl -I https://x" - $POT/$URL o tren TU CHOI flag 1-ky-tu do fullmatch
+      # semantics cua pattern-not-regex, nen can nhanh rieng bat FLAG roi VAL.
+      - patterns:
+          - pattern: curl ... $FLAG $VAL ...
+          - metavariable-pattern:
+              metavariable: $FLAG
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z-]+=
+                - pattern-regex: ^(-|--)[a-zA-Z]
+    message: "curl|||$POT|||$URL|||$FEQVAL|||$VAL"
+    languages: [bash]
+    severity: INFO
+
+  - id: wget-url-extraction
+    pattern-either:
+      - patterns:
+          - pattern: wget ... $POT $URL ...
+          - metavariable-pattern:
+              metavariable: $POT
+              patterns:
+                - pattern-regex: (^(-|--)[a-zA-Z-]+=)|.*?
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: wget $URL ...
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: wget ... $FEQVAL ...
+          - metavariable-pattern:
+              metavariable: $FEQVAL
+              pattern-regex: ^(-|--)[a-zA-Z-]+=
+      - patterns:
+          - pattern: wget ... $FLAG $VAL ...
+          - metavariable-pattern:
+              metavariable: $FLAG
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z-]+=
+                - pattern-regex: ^(-|--)[a-zA-Z]
+    message: "wget|||$POT|||$URL|||$FEQVAL|||$VAL"
+    languages: [bash]
+    severity: INFO
+
+  - id: git-clone-extraction
+    patterns:
+      - pattern: git clone ... $URL ...
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not-regex: ^(-|--)[a-zA-Z]
+    message: "git-clone|||$URL"
+    languages: [bash]
+    severity: INFO
+
+  # MOI: khong co trong Cosseter goc, viet theo dung khuon curl/wget o tren.
+  - id: helm-url-extraction
+    pattern-either:
+      - patterns:
+          - pattern: helm repo add $NAME $URL ...
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: helm pull $URL ...
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+      - patterns:
+          - pattern: helm install ... $POT $URL ...
+          - metavariable-pattern:
+              metavariable: $POT
+              patterns:
+                - pattern-regex: (^(-|--)[a-zA-Z-]+=)|.*?
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+          - metavariable-pattern:
+              metavariable: $URL
+              patterns:
+                - pattern-not-regex: ^(-|--)[a-zA-Z]
+    message: "helm|||$URL"
+    languages: [bash]
+    severity: INFO
