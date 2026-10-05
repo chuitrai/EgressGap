@@ -7,7 +7,7 @@ authors:
     given-names: "Bao Vu"
   - family-names: "Nguyen"
     given-names: "Van-Linh"
-license: Apache-2.0
+license: MIT
 version: 0.1.0
 date-released: 2026-10-05
 repository-code: "https://github.com/chuitrai/EgressGap"   

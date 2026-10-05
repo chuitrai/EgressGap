@@ -118,7 +118,7 @@ singled out.
 
 ## License
 
-Code: Apache-2.0 (`LICENSE`). The paper and third-party data (PSL, LOTS list,
+Code: MIT (`LICENSE`). The paper and third-party data (PSL, LOTS list,
 Tranco) are under their own terms.
 
 ## Citation

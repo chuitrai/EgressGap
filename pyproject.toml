@@ -3,7 +3,7 @@ name = "teep"
 version = "0.1.0"
 description = "Measuring residual egress capacity in hostname-based CI/CD allowlists"
 readme = "README.md"
-license = "Apache-2.0"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "checkov>=3.1.47",
